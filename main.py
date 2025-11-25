@@ -32,6 +32,7 @@ app = Flask(__name__)
 app.debug = True
 app.config['SECRET_KEY'] = 'super-secret'
 app.config['JWT_SECRET_KEY'] = 'super-secret'  # Change this in production!
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 900 # 15 minutos en segundos
 
 jwt = JWT(app)
 
@@ -43,7 +44,8 @@ def autenticar():
     usuario = authenticate(correo, contrasena)
     if not usuario:
         return jsonify({"msg": "Usuario no encontrado"}), 401
-    access_token = create_access_token(identity=usuario.id)
+    # ✅ Convertir a string
+    access_token = create_access_token(identity=str(usuario.id))
     return jsonify(access_token=access_token)
 
 @app.route("/agregar_disco")

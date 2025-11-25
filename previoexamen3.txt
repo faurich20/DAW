@@ -8,41 +8,74 @@
 #calcular, quienes son los usuarios que cumplen con cierto porcentaje 
 #que se enviará a una api que Ud. construirá api_procesar_pendientes
 {
-   "porcentaje" : 0.5
+   "porcentaje" : 0.5  #porcentaje que yo envio o ingreso
 }
 
 #Con los usuarios que cumplen como mínimo este porcentaje de tareas culminadas, se 
 #listarán los correos electrónicos que figuran como autores de los comentarios en sus 
-#publicaciones. Se debe guardar en la BD en las tablas que Ud considere. El response 
-#del api será
+#publicaciones. 
+#de https://jsonplaceholder.typicode.com/posts tiene los datos:
 {
-   "id_proceso" : 2
+    "userId": 1,  #es el usuario que hizo la publicacion
+    "id": 1,
+    "title": 
+    "body": 
+}
+
+#de https://jsonplaceholder.typicode.com/comments tiene los datos:
+{
+    "postId": 1,
+    "id": 1,
+    "name": 
+    "email": "Eliseo@gardner.biz", #se listan los correos electrónicos, y se guardan en la tabla comentadores
+    "body": 
+} 
+
+#Se debe guardar en la BD en las tablas que Ud considere. El response del api será
+{
+   "id_proceso" : 2 #esto respondera la api
 }
 
 #Construir otra api para especificar ese id y muestre el detalle procesado
 {
-   "id_proceso" : 2,
+   "id_proceso" : 2, #la respuesta de la api
    "data" : [
-            {"userId": 12, "username": "jperez", "porcentaje": 0.6,
-                "comentadores" : ['abc@yzx.com', 'aa@qq.com', 'qq@ss.com']},
-            {"userId": 13, "username": "mrodriguez", "porcentaje": 0.7,
-                "comentadores" : ['pop@aaa.com', 'julio@x.net']}
+            {"userId": 12, #el usuario que cumplio el porcentaje
+            "username": "jperez",  #el username del usuario
+            "porcentaje": 0.6, #el porcentaje que cumplio
+                "comentadores" : 
+                    ['abc@yzx.com', 'aa@qq.com', 'qq@ss.com']}, #los correos electrónicos que figuran como autores de los comentarios en sus publicaciones
+            {"userId": 13, #otro usuario que cumplio el porcentaje
+            "username": "mrodriguez", #el username del usuario
+            "porcentaje": 0.7, #el porcentaje que cumplio
+                "comentadores" : 
+                    ['pop@aaa.com', 'julio@x.net']} #los correos electrónicos que figuran como autores de los comentarios en sus publicaciones
             ]
 }
 
 
 23:50 24/11/2025
--- Tabla principal: usuarios_procesos (sin necesidad de tabla procesos separada)
+-- =====================================================
+-- ESQUEMA DE BASE DE DATOS PARA PROCESAMIENTO DE TAREAS
+-- =====================================================
+
+-- Tabla principal: usuarios_procesos
+-- Almacena los usuarios que cumplen con el porcentaje mínimo de tareas completadas
+-- en cada proceso de consulta
 CREATE TABLE IF NOT EXISTS usuarios_procesos (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    userId INT,
-    username VARCHAR(255),
-    porcentaje DECIMAL(5,2)
+    id_proceso INT NOT NULL,                -- ID del proceso de consulta (permite agrupar varias ejecuciones)
+    userId INT,                              -- ID del usuario en la API externa
+    username VARCHAR(255),                   -- Username del usuario
+    porcentaje DECIMAL(5,2),                 -- Porcentaje de tareas completadas
+    INDEX idx_id_proceso (id_proceso)        -- Índice para mejorar búsquedas por proceso
 );
 
 -- Tabla de comentadores
+-- Almacena los emails de los comentadores en las publicaciones de cada usuario
 CREATE TABLE IF NOT EXISTS comentadores (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    id_usuario_proceso INT,
-    email VARCHAR(255)
+    id_usuario_proceso INT NOT NULL,         -- FK a usuarios_procesos.id
+    email VARCHAR(255),                      -- Email del comentador
+    FOREIGN KEY (id_usuario_proceso) REFERENCES usuarios_procesos(id) ON DELETE CASCADE
 );

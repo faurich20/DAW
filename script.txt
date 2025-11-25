@@ -16,4 +16,27 @@ mysqldump -h faurich20.mysql.pythonanywhere-services.com \
   --single-transaction --quick --routines --triggers --events \
   --no-tablespaces \
   'faurich20$dawb_datos' > "/home/faurich20/mysite/backup_dawb_datos_$dt.sql"
+| discos | CREATE TABLE `discos` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `codigo` varchar(20) NOT NULL,
+  `nombre` varchar(255) NOT NULL,
+  `artista` varchar(255) NOT NULL,
+  `precio` decimal(9,2) NOT NULL,
+  `genero` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb3 |
+
+mysqldump -u usuario -p faurich20$dawb_datos > /home/faurich20/mysite/backup1.sql;
+
+dt=$(date +%F_%H-%M-%S)
+mysqldump -h faurich20.mysql.pythonanywhere-services.com \
+  -u faurich20 -p \
+  --single-transaction --quick --routines --triggers --events \
+  --no-tablespaces \
+  'faurich20$dawb_datos' > "/home/faurich20/mysite/backup_dawb_datos_$dt.sql"
+
+
+
+
+
 

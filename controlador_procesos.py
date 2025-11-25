@@ -63,10 +63,12 @@ def procesar_pendientes(porcentaje_minimo):
     # Guardar en BD
     conexion = obtener_conexion()
     id_proceso = 0
+    
     with conexion.cursor() as cursor:
-        # Limpiar tablas anteriores (opcional, según necesites)
-        cursor.execute('DELETE FROM comentadores')
-        cursor.execute('DELETE FROM usuarios_procesos')
+        # Obtener el siguiente id_proceso (MAX + 1) ANTES de cualquier operación
+        cursor.execute('SELECT COALESCE(MAX(id_proceso), 0) + 1 FROM usuarios_procesos')
+        result = cursor.fetchone()
+        id_proceso = result[0] if result else 1
         
         # Para cada usuario filtrado, buscar comentarios en sus posts
         for usuario in usuarios_filtrados:
@@ -74,15 +76,11 @@ def procesar_pendientes(porcentaje_minimo):
             username = usuario['username']
             porcentaje = usuario['porcentaje']
             
-            # Insertar usuario en BD
-            cursor.execute('INSERT INTO usuarios_procesos (userId, username, porcentaje) VALUES (%s, %s, %s)',
-                         (userId, username, porcentaje))
-            conexion.commit()
+            # Insertar usuario en BD con el id_proceso
+            cursor.execute('INSERT INTO usuarios_procesos (id_proceso, userId, username, porcentaje) VALUES (%s, %s, %s, %s)',
+                         (id_proceso, userId, username, porcentaje))
+            # OBTENER ID INMEDIATAMENTE DESPUÉS DEL INSERT, ANTES DEL COMMIT
             id_usuario_proceso = conexion.insert_id()
-            
-            # Guardar el primer id como id_proceso
-            if id_proceso == 0:
-                id_proceso = id_usuario_proceso
             
             # Buscar posts del usuario
             posts_usuario = []
@@ -100,6 +98,7 @@ def procesar_pendientes(porcentaje_minimo):
                         cursor.execute('INSERT INTO comentadores (id_usuario_proceso, email) VALUES (%s, %s)',
                                      (id_usuario_proceso, email))
     
+    # Hacer commit final de todas las operaciones
     conexion.commit()
     conexion.close()
     
@@ -113,8 +112,8 @@ def obtener_detalle_proceso(id_proceso):
     conexion = obtener_conexion()
     data = []
     with conexion.cursor() as cursor:
-        # Buscar usuarios del proceso
-        cursor.execute('SELECT id, userId, username, porcentaje FROM usuarios_procesos WHERE id >= %s', (id_proceso,))
+        # Buscar usuarios del proceso (filtrar por id_proceso exacto)
+        cursor.execute('SELECT id, userId, username, porcentaje FROM usuarios_procesos WHERE id_proceso = %s', (id_proceso,))
         usuarios = cursor.fetchall()
         
         for usuario in usuarios:
