@@ -1,8 +1,7 @@
 from flask import Flask, render_template, request, redirect, flash, jsonify, session
 from flask import request, make_response
 from flask_jwt_extended import JWTManager as JWT, create_access_token, jwt_required, get_jwt_identity
-import controlador_discos
-import controlador_usuarios
+import controlador_discos, controlador_usuarios, controlador_procesos
 import json, requests
 
 class User(object):
@@ -294,6 +293,41 @@ def procesar_logout():
     resp.set_cookie('username', '', expires=0)
     return resp
 
+
+
+@app.route('/api_procesar_pendientes', methods=['POST'])
+@jwt_required()
+def api_procesar_pendientes():
+    try:
+        # Obtener porcentaje del request
+        data_request = request.get_json()
+        porcentaje_minimo = data_request.get('porcentaje', 0.5)
+        
+        # Procesar usando el controlador
+        id_proceso = controlador_procesos.procesar_pendientes(porcentaje_minimo)
+        
+        return jsonify({'id_proceso': id_proceso})
+        
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Error fetching data: {e}'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/detalle_proceso/<int:id_proceso>', methods=['GET'])
+@jwt_required()
+def detalle_proceso(id_proceso):
+    try:
+        # Obtener detalle usando el controlador
+        data = controlador_procesos.obtener_detalle_proceso(id_proceso)
+        
+        return jsonify({
+            'id_proceso': id_proceso,
+            'data': data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # Iniciar el servidor
