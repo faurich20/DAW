@@ -32,13 +32,13 @@ def eliminar_disco(id):
 
 def obtener_disco_por_id(id, cd = False):
     conexion = obtener_conexion(cd)
-    juego = None
+    disco = None
     with conexion.cursor() as cursor:
         cursor.execute(
             "SELECT id, codigo, nombre, artista, precio, genero FROM discos WHERE id = %s", (id,))
-        juego = cursor.fetchone()
+        disco = cursor.fetchone()
     conexion.close()
-    return juego
+    return disco
 
 
 def actualizar_disco(codigo, nombre, artista, precio, genero, id):

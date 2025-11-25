@@ -1,0 +1,29 @@
+# Instalar dependencias (recomendado):
+pip install -r requeriments.txt
+
+# O instalar manualmente:
+# pip install Flask==2.3.3 PyJWT PyMySQL flask-jwt-extended
+
+#bd: para la practica 03
+
+CREATE TABLE IF NOT EXISTS procesos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    fecha DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS usuarios_procesos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_proceso INT,
+    userId INT,
+    username VARCHAR(255),
+    porcentaje DECIMAL(5,2)
+);
+
+CREATE TABLE IF NOT EXISTS comentadores (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario_proceso INT,
+    email VARCHAR(255)
+);
+
+# Cambiar collation de tabla users:
+ALTER TABLE users CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;

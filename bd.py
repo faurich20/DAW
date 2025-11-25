@@ -1,6 +1,6 @@
 import pymysql
 
-HOST = 'faurich20.mysql.pythonanywhere-services.com'
+HOST = 'localhost'#'faurich20.mysql.pythonanywhere-services.com'
 USER = 'root'#'faurich20'
 PASSWORD = ''#'abcDEF$123'
 DB = 'faurich20$dawb_datos'

@@ -1,15 +1,9 @@
-from flask import Flask, render_template, request, redirect, flash, jsonify, session, request, make_response
-from flask_jwt import JWT, jwt_required, current_identity
+from flask import Flask, render_template, request, redirect, flash, jsonify, session
+from flask import request, make_response
+from flask_jwt_extended import JWTManager as JWT, create_access_token, jwt_required, get_jwt_identity
 import controlador_discos
 import controlador_usuarios
 import json, requests
-
-#pip install Flask-JWT
-#pip install Flask==2.3.3
-#pip install PyJWT
-#pip install pymysql
-
-
 
 class User(object):
     def __init__(self, id, username, password):
@@ -35,13 +29,23 @@ def identity(payload):
         user = User(usuario["id"], usuario["email"], usuario["password"])
     return user
 
-
 app = Flask(__name__)
 app.debug = True
 app.config['SECRET_KEY'] = 'super-secret'
+app.config['JWT_SECRET_KEY'] = 'super-secret'  # Change this in production!
 
-jwt = JWT(app, authenticate, identity)
+jwt = JWT(app)
 
+# Endpoint para autenticar usando las funciones authenticate e identity
+@app.route('/autenticar', methods=['POST'])
+def autenticar():
+    correo = request.json.get('email', None)
+    contrasena = request.json.get('password', None)
+    usuario = authenticate(correo, contrasena)
+    if not usuario:
+        return jsonify({"msg": "Usuario no encontrado"}), 401
+    access_token = create_access_token(identity=usuario.id)
+    return jsonify(access_token=access_token)
 
 @app.route("/agregar_disco")
 def formulario_agregar_disco():
@@ -92,21 +96,27 @@ def actualizar_disco():
 @app.route("/probarjsoninterno")
 def probarjsoninterno():
     try:
-
-
-        info = json.loads(datos)
-        #print('Total de usuarios:', len(info))
+        if 'username' not in session:
+            return redirect("/login")
+        access_token = create_access_token(identity=session['username'])
+        response = make_response(jsonify(access_token=access_token))
+        data = {
+            'access_token': access_token,
+            'token_type': 'bearer'
+        }
+        info = json.loads(data)
+        response = make_response(jsonify(info))
         cadena = 'Total de usuarios: %s<br>' % str(len(info))
         for elemento in info:
             cadena += 'Nombre %s<br>' % elemento['nombre']
             cadena += 'Id %s<br>' % elemento['id']
             cadena += 'Atributo %s<br>' % elemento['x']
-            #print('Nombre', elemento['nombre'])
-            #print('Id', elemento['id'])
-            #print('Atributo', elemento['x'])
-        return cadena
+        response = make_response(cadena)
+        response.headers['Content-Type'] = 'application/json'
+        return response
     except Exception as e:
-        return repr(e)
+        return jsonify({'error': str(e)}), 500
+
 
 
 @app.route("/probarjsonexterno")
@@ -205,7 +215,7 @@ def api_guardar_disco():
                         "data": {"idgenerado": idgenerado},
                         "message": "Disco guardado correctamente" })
     except Exception as e:
-        return jsonify({"code": 1,
+        return jsonify({"code": 0,
                         "data": {},
                         "message": "Ocurrio el siguiente error: %s" % repr(e) })
 
@@ -231,7 +241,7 @@ def api_actualizar_disco():
         })
     except Exception as e:
         return jsonify({
-            "code": 1,
+            "code": 0,
             "data": {},
             "message": "Ocurrió el siguiente error: %s" % repr(e)
         })
@@ -269,15 +279,15 @@ def procesar_signup():
     username = request.form["usuario"]
     password = request.form["contrasena"]
     confpassword = request.form["confcontrasena"]
-    usuario = controlador_usuarios.obtener_usuario_por_email(username, password)
+    usuario = controlador_usuarios.obtener_usuario_por_email(username)
     if usuario or (password != confpassword):
         return redirect("/login")
     else:
-        controlador_usuarios.obtener_usuario_por_email(username, password)
+        controlador_usuarios.insertar_usuario(username, password)
         return redirect("/discos")
     return redirect("/login")
 
-@app.route("/procesar_logout", methods=["POST"])
+@app.route("/procesar_logout", methods=["GET", "POST"])
 def procesar_logout():
     session.pop('username',None)
     resp = make_response(render_template("login.html"))
