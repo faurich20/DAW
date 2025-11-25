@@ -1,0 +1,22 @@
+{% extends "maestrageneral.html" %}
+{% block titulo %}
+INICIAR SESION
+{% endblock %}
+{% block contenido %}
+<section class="section">
+    <div class="columns">
+        <div class="column is-one-third">
+            <h3 class="is-size-3">Iniciar sesión</h3>
+            <form action="{{url_for('procesar_login')}}" method="post">
+                <label for="usuario">Usuario:</label>
+                <input required type="text" class="input" placeholder="Usuario" name="usuario" id="usuario">
+                <label for="contrasena">Contraseña:</label>
+                <input required type="password" class="input" placeholder="Contraseña" name="contrasena" id="contrasena">
+
+                <button type="submit" class="button is-success mt-2">Iniciar Sesión</button>
+                <a href="{{url_for('signup')}}" class="button is-primary mt-2">Registrarse</a>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "maestra.html" %}
+{% block titulo %}
+Editar disco
+{% endblock %}
+{% block contenido %}
+<section class="section">
+    <div class="columns">
+        <div class="column">
+            <h3 class="is-size-3">Editar disco</h3>
+            <form action="{{url_for('actualizar_disco')}}" method="post">
+                {# Enviar el id en un campo oculto #}
+                <input type="hidden" name="id" value="{{disco[0]}}">
+                <label for="codigo">Código:</label>
+                <input value="{{disco[1]}}" required type="text" class="input" placeholder="Código" name="codigo" id="codigo">
+                <label for="nombre">Nombre:</label>
+                <input value="{{disco[2]}}" required type="text" class="input" placeholder="Nombre" name="nombre" id="nombre">
+                <label for="artista">Artista</label>
+                <input value="{{disco[3]}}" required type="text" class="input" placeholder="Artista" name="artista" id="artista">
+                <label for="precio">Precio</label>
+                <input value="{{disco[4]}}" required type="number" class="input" placeholder="Precio" name="precio" id="precio">
+                <label for="genero">Género</label>
+                <input value="{{disco[5]}}" required type="text" class="input" placeholder="Género" name="genero" id="genero">
+                <button type="submit" class="button is-success mt-2">Guardar</button>
+                <a href="{{url_for('discos')}}" class="button is-primary mt-2">Volver</a>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
