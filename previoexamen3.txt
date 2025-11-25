@@ -1,0 +1,48 @@
+#Según el enlace /todos: https://jsonplaceholder.typicode.com/todos
+{
+    "userId": 1,
+    "id": 1,
+    "title": "delectus aut autem",
+    "completed": false
+}
+#calcular, quienes son los usuarios que cumplen con cierto porcentaje 
+#que se enviará a una api que Ud. construirá api_procesar_pendientes
+{
+   "porcentaje" : 0.5
+}
+
+#Con los usuarios que cumplen como mínimo este porcentaje de tareas culminadas, se 
+#listarán los correos electrónicos que figuran como autores de los comentarios en sus 
+#publicaciones. Se debe guardar en la BD en las tablas que Ud considere. El response 
+#del api será
+{
+   "id_proceso" : 2
+}
+
+#Construir otra api para especificar ese id y muestre el detalle procesado
+{
+   "id_proceso" : 2,
+   "data" : [
+            {"userId": 12, "username": "jperez", "porcentaje": 0.6,
+                "comentadores" : ['abc@yzx.com', 'aa@qq.com', 'qq@ss.com']},
+            {"userId": 13, "username": "mrodriguez", "porcentaje": 0.7,
+                "comentadores" : ['pop@aaa.com', 'julio@x.net']}
+            ]
+}
+
+
+23:50 24/11/2025
+-- Tabla principal: usuarios_procesos (sin necesidad de tabla procesos separada)
+CREATE TABLE IF NOT EXISTS usuarios_procesos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    userId INT,
+    username VARCHAR(255),
+    porcentaje DECIMAL(5,2)
+);
+
+-- Tabla de comentadores
+CREATE TABLE IF NOT EXISTS comentadores (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario_proceso INT,
+    email VARCHAR(255)
+);

@@ -1,4 +1,5 @@
 from bd import obtener_conexion
+import requests
 
 # URLs de las APIs
 URL_todos = "https://jsonplaceholder.typicode.com/todos"
