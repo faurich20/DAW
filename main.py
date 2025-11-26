@@ -33,6 +33,10 @@ app.debug = True
 app.config['SECRET_KEY'] = 'super-secret'
 app.config['JWT_SECRET_KEY'] = 'super-secret'  # Change this in production!
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 900 # 15 minutos en segundos
+app.config['JWT_HEADER_TYPE'] = '' # ✅ IMPORTANTE: Permite enviar el token sin "Bearer"
+app.config['JWT_AUTH_HEADER_PREFIX'] = '' # Compatibilidad con versiones antiguas
+
+
 
 jwt = JWT(app)
 
@@ -328,6 +332,309 @@ def detalle_proceso(id_proceso):
             'data': data
         })
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+#################################################################################################
+# ENDPOINTS PARA EXAMEN 3 - PARTE 1
+#################################################################################################
+
+@app.route('/api_registrarusuario', methods=['POST'])
+def api_registrarusuario():
+    """
+    Endpoint para registrar un usuario con código de verificación
+    Request: {"username": "user1", "password": "123456"}
+    Response: {"data": {"username": "user1", "codeverify": 975485}, "message": "Usuario registrado correctamente", "status": 1}
+    """
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({
+                "data": {},
+                "message": "Username y password son requeridos",
+                "status": 0
+            }), 400
+        
+        # Registrar usuario con código de verificación
+        resultado = controlador_usuarios.registrar_usuario_con_codigo(username, password)
+        
+        return jsonify({
+            "data": {
+                "username": resultado["username"],
+                "codeverify": int(resultado["codeverify"])  # Convertir a int para el response
+            },
+            "message": "Usuario registrado correctamente",
+            "status": 1
+        }), 201
+        
+    except ValueError as e:
+        return jsonify({
+            "data": {},
+            "message": str(e),
+            "status": 0
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "data": {},
+            "message": f"Error al registrar usuario: {str(e)}",
+            "status": 0
+        }), 500
+
+
+@app.route('/api_confirmarusuario', methods=['POST'])
+def api_confirmarusuario():
+    """
+    Endpoint para confirmar un usuario con el código de verificación
+    Request: {"username": "user1", "codeverify": 975485}
+    Response: {"data": {}, "message": "Usuario verificado correctamente", "status": 1}
+    """
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        codeverify = data.get('codeverify')
+        
+        if not username or not codeverify:
+            return jsonify({
+                "data": {},
+                "message": "Username y codeverify son requeridos",
+                "status": 0
+            }), 400
+        
+        # Confirmar usuario
+        confirmado = controlador_usuarios.confirmar_usuario(username, codeverify)
+        
+        if confirmado:
+            return jsonify({
+                "data": {},
+                "message": "Usuario verificado correctamente",
+                "status": 1
+            }), 200
+        else:
+            return jsonify({
+                "data": {},
+                "message": "Código de verificación inválido o usuario no encontrado",
+                "status": 0
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            "data": {},
+            "message": f"Error al confirmar usuario: {str(e)}",
+            "status": 0
+        }), 500
+
+
+@app.route('/auth', methods=['POST'])
+def auth():
+    """
+    Endpoint para autenticar (modificado para solo permitir usuarios verificados)
+    Request: {"username": "user1", "password": "123456"}
+    Response: {"token": "eyJ0eXAiOi..."}
+    NOTA: Solo genera JWT si el usuario está verificado (status = 1)
+    """
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({
+                "msg": "Username y password son requeridos"
+            }), 400
+        
+        # Obtener solo usuarios verificados
+        usuario = controlador_usuarios.obtener_usuario_verificado_por_email(username)
+        
+        if not usuario:
+            return jsonify({
+                "msg": "Usuario no encontrado o no verificado"
+            }), 401
+        
+        # Verificar contraseña
+        if usuario["password"] != password:
+            return jsonify({
+                "msg": "Contraseña incorrecta"
+            }), 401
+        
+        # Generar JWT token
+        access_token = create_access_token(identity=str(usuario["id"]))
+        
+        return jsonify({
+            "token": access_token
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "msg": f"Error en autenticación: {str(e)}"
+        }), 500
+
+
+@app.route('/api_misdatos', methods=['GET'])
+@jwt_required()
+def api_misdatos():
+    """
+    Endpoint protegido con JWT para validar la autenticación
+    Retorna la información del usuario autenticado
+    Headers: Authorization: <JWT_TOKEN>
+    Response: {"data": {"id": 1, "email": "user1"}, "message": "Datos obtenidos correctamente"}
+    """
+    try:
+        # Obtener la identidad del usuario desde el JWT
+        current_user_id = get_jwt_identity()
+        
+        # Obtener información del usuario
+        usuario = controlador_usuarios.obtener_usuario_por_id(current_user_id)
+        
+        if not usuario:
+            return jsonify({
+                "data": {},
+                "message": "Usuario no encontrado"
+            }), 404
+        
+        return jsonify({
+            "data": {
+                "id": usuario["id"],
+                "email": usuario["email"]
+            },
+            "message": "Datos obtenidos correctamente"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "data": {},
+            "message": f"Error al obtener datos: {str(e)}"
+        }), 500
+
+
+
+# ALGORITMO DE APELLIDO - EXAMEN 3  -------------------------------------------------------------
+def es_capicua(numero):
+    """Verifica si un número es capicúa (palíndromo)"""
+    num_str = str(numero)
+    num_invertido_str = num_str[::-1]
+    if num_str == num_invertido_str:
+        return True
+    else:
+        return False
+
+def obt1(n):
+    """Suma los dígitos de un número"""
+    s = 0
+    while n > 0:
+        d = n % 10
+        s += d
+        n //= 10
+    return s
+
+@app.route('/api_resultado_apellido/<letra>', methods=['GET'])
+def api_resultado_apellido(letra):
+    """
+    Endpoint para obtener el resultado del algoritmo según la primera letra del apellido
+    Ruta: /api_resultado_apellido/<letra>
+    Ejemplo: /api_resultado_apellido/P
+    Response: {"letra": "P", "valor_ascii": 80, "resultado": "Desarrolla el segundo ejercicio"}
+    """
+    try:
+        # Validar que sea una sola letra
+        if not letra or len(letra) != 1:
+            return jsonify({
+                "error": "Debe enviar una sola letra como parámetro"
+            }), 400
+        
+        # Convertir a mayúscula
+        letra_mayuscula = letra.upper()
+        
+        # Validar que sea una letra (A-Z)
+        if not letra_mayuscula.isalpha():
+            return jsonify({
+                "error": "Debe enviar una letra válida (A-Z)"
+            }), 400
+        
+        # Obtener valor ASCII
+        valor_ascii = ord(letra_mayuscula)
+        
+        # Validar rango ASCII (65-90 son las letras mayúsculas A-Z)
+        if valor_ascii < 65 or valor_ascii > 90:
+            return jsonify({
+                "error": "La letra debe estar en el rango A-Z"
+            }), 400
+        
+        # Aplicar el algoritmo
+        obt1_primera = obt1(valor_ascii)
+        obt1_segunda = obt1(obt1_primera)
+        
+        # Verificar la condición
+        if (obt1_segunda % 2) != 0:
+            resultado = "Desarrolla el primer ejercicio"
+        else:
+            resultado = "Desarrolla el segundo ejercicio"
+        
+        # Preparar respuesta
+        return jsonify({
+            "letra": letra_mayuscula,
+            "valor_ascii": valor_ascii,
+            "obt1_primera": obt1_primera,
+            "obt1_segunda": obt1_segunda,
+            "modulo_2": obt1_segunda % 2,
+            "resultado": resultado
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Error al procesar: {str(e)}"
+        }), 500
+
+
+
+
+# API EVALUAR FEPA - EXAMEN 3
+
+
+@app.route('/api_evaluar_fepa', methods=['POST'])
+@jwt_required()
+def api_evaluar_fepa():
+    """
+    API que evalúa usuarios según porcentaje de tareas completadas
+    y extrae emails de los mejores comentarios en sus publicaciones.
+    Guarda en tablas evaluacion_fepa y evaldet_fepa.
+    Request: {"porcentaje": 0.7}
+    Response: {"id_proceso": 1}
+    """
+    try:
+        # Obtener porcentaje del request
+        data_request = request.get_json()
+        porcentaje_minimo = data_request.get('porcentaje', 0.5)
+        
+        # Validar porcentaje
+        if not isinstance(porcentaje_minimo, (int, float)) or porcentaje_minimo < 0.0 or porcentaje_minimo > 1.0:
+            return jsonify({'error': 'El porcentaje debe ser un número entre 0.0 y 1.0'}), 400
+        
+        # Procesar usando el controlador
+        ideval = controlador_procesos.procesar_evaluar_fepa(porcentaje_minimo)
+        
+        return jsonify({'id_proceso': ideval}), 200
+        
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Error fetching data: {e}'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api_detalle_evaluacion/<int:ideval>', methods=['GET'])
+@jwt_required()
+def api_detalle_evaluacion(ideval):
+    """
+    Obtiene el detalle de una evaluación por su ID
+    """
+    try:
+        data = controlador_procesos.obtener_detalle_evaluacion(ideval)
+        return jsonify({
+            'id_proceso': ideval,
+            'data': data
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

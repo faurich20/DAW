@@ -11,7 +11,7 @@ URL_comentarios = "https://jsonplaceholder.typicode.com/comments"
 def procesar_pendientes(porcentaje_minimo):
     """
     Procesa usuarios con porcentaje mínimo de tareas completadas
-    y guarda sus comentadores en BD
+    y guarda sus comentadores en BD (Lógica anterior)
     """
     # Descargar todos
     response_todos = requests.get(URL_todos)
@@ -105,6 +105,7 @@ def procesar_pendientes(porcentaje_minimo):
     return id_proceso
 
 
+#FUNCIONES PARA EXAMEN 3 - EJERCICIO 02
 def obtener_detalle_proceso(id_proceso):
     """
     Obtiene el detalle de un proceso por su id
@@ -139,3 +140,168 @@ def obtener_detalle_proceso(id_proceso):
     conexion.close()
     
     return data
+
+
+def procesar_evaluar_fepa(porcentaje_minimo):
+    """
+    Procesa usuarios con porcentaje mínimo de tareas completadas,
+    calcula promedio de palabras por línea en comentarios y guarda en BD (Tablas FEPA)
+    """
+    # Descargar todos
+    response_todos = requests.get(URL_todos)
+    response_todos.raise_for_status()
+    todos = response_todos.json()
+    
+    # Descargar posts
+    response_posts = requests.get(URL_posts)
+    response_posts.raise_for_status()
+    posts = response_posts.json()
+    
+    # Descargar comentarios
+    response_comentarios = requests.get(URL_comentarios)
+    response_comentarios.raise_for_status()
+    comentarios = response_comentarios.json()
+    
+    # Calcular porcentaje de tareas completadas por usuario
+    usuarios_tareas = {}
+    for todo in todos:
+        userId = todo['userId']
+        if userId not in usuarios_tareas:
+            usuarios_tareas[userId] = {'total': 0, 'completadas': 0}
+        usuarios_tareas[userId]['total'] += 1
+        if todo['completed']:
+            usuarios_tareas[userId]['completadas'] += 1
+    
+    # Filtrar usuarios que cumplen el porcentaje minimo
+    usuarios_filtrados = []
+    for userId, tareas in usuarios_tareas.items():
+        porcentaje = tareas['completadas'] / tareas['total']
+        if porcentaje >= porcentaje_minimo:
+            usuarios_filtrados.append({
+                'userId': userId,
+                'porcentaje': porcentaje
+            })
+    
+    # Guardar en BD
+    conexion = obtener_conexion()
+    ideval = 0
+    
+    with conexion.cursor() as cursor:
+        # Insertar evaluacion con fecha y porcentaje
+        cursor.execute('INSERT INTO evaluacion_fepa (fechahora, porcentaje) VALUES (NOW(), %s)', (porcentaje_minimo,))
+        ideval = conexion.insert_id()
+        
+        # Para cada usuario filtrado
+        for usuario in usuarios_filtrados:
+            userId = usuario['userId']
+            
+            # Buscar posts del usuario
+            posts_usuario = []
+            for post in posts:
+                if post['userId'] == userId:
+                    posts_usuario.append(post)
+            
+            # Para cada post del usuario
+            for post in posts_usuario:
+                postId = post['id']
+                
+                # Buscar comentarios del post
+                comentarios_post = []
+                for comentario in comentarios:
+                    if comentario['postId'] == postId:
+                        comentarios_post.append(comentario)
+                
+                # Calcular promedio de palabras por línea para cada comentario
+                comentarios_con_promedio = []
+                for comentario in comentarios_post:
+                    body = comentario['body']
+                    lineas = body.split('\n')
+                    
+                    total_palabras = 0
+                    for linea in lineas:
+                        palabras = linea.split()
+                        total_palabras += len(palabras)
+                    
+                    promedio = total_palabras / len(lineas) if len(lineas) > 0 else 0
+                    
+                    comentarios_con_promedio.append({
+                        'email': comentario['email'],
+                        'promedio': promedio
+                    })
+                
+                # Ordenar por promedio de mayor a menor
+                comentarios_con_promedio.sort(key=lambda x: x['promedio'], reverse=True)
+                
+                # Seleccionar los dos comentarios con mayor promedio
+                top_2 = comentarios_con_promedio[:2]
+                
+                # Guardar en BD
+                for com in top_2:
+                    cursor.execute('INSERT INTO evaldet_fepa (ideval, userId, email, promedio) VALUES (%s, %s, %s, %s)',
+                                 (ideval, userId, com['email'], com['promedio']))
+    
+    conexion.commit()
+    conexion.close()
+    
+    return ideval
+
+
+def obtener_detalle_evaluacion(ideval):
+    """
+    Obtiene el detalle completo de una evaluación por su ideval
+    Estructura:
+    {
+        "fechahora": "YYYY-MM-DD HH:MM",
+        "ideval": 1,
+        "detalle": [...],
+        "porcentaje": 0.8
+    }
+    """
+    conexion = obtener_conexion()
+    resultado = {}
+    
+    with conexion.cursor() as cursor:
+        # 1. Obtener datos de la cabecera (evaluacion_fepa)
+        cursor.execute('SELECT fechahora, porcentaje FROM evaluacion_fepa WHERE ideval = %s', (ideval,))
+        cabecera = cursor.fetchone()
+        
+        if not cabecera:
+            conexion.close()
+            return None
+            
+        # Formatear fecha a string (YYYY-MM-DD HH:MM)
+        fechahora = cabecera[0]
+        if fechahora:
+            if hasattr(fechahora, 'strftime'):
+                fechahora = fechahora.strftime('%Y-%m-%d %H:%M')
+            else:
+                fechahora = str(fechahora)
+        else:
+            fechahora = None
+            
+        porcentaje = float(cabecera[1])
+        
+        resultado['fechahora'] = fechahora
+        resultado['ideval'] = ideval
+        resultado['detalle'] = [] 
+        resultado['porcentaje'] = porcentaje
+        
+        # 2. Obtener detalles (evaldet_fepa)
+        cursor.execute('SELECT id, ideval, userId, email, promedio FROM evaldet_fepa WHERE ideval = %s', (ideval,))
+        detalles_rows = cursor.fetchall()
+        
+        detalles = []
+        for row in detalles_rows:
+            detalles.append({
+                'id': row[0],
+                'ideval': row[1],
+                'userId': row[2],
+                'email': row[3],
+                'promedio': float(row[4])
+            })
+            
+        resultado['detalle'] = detalles
+    
+    conexion.close()
+    
+    return resultado
